@@ -1,5 +1,5 @@
 # Chapter 4 Lab: Logistic Regression, LDA, QDA, and KNN
-
+rm(list = ls())
 # The Stock Market Data
 library(ISLR)
 attach(Smarket)
@@ -9,7 +9,7 @@ corrSmarket <- cor(Smarket[,-9]) # correlation of numeric variables
 dimSmarket <- dim(Smarket)
 plot(Volume)
 
-# Logistic Regression
+### Logistic Regression ###
 
 glm.fit = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Smarket, family=binomial)
 summary(glm.fit)
@@ -18,34 +18,43 @@ summary(glm.fit)$coef # all coeffs
 summary(glm.fit)$coef[,4] # p values
 
 # vector of probabilities of market being Up or Down based on features supplied to model
+# for a default binomial model the default predictions are of log-odds (probabilities on logit scale)
+# so type = "response" gives the predicted probabilities
 glm.probs = predict(glm.fit, type = "response") 
 
 contrasts(Direction) # shows how qualitative variable Direction is coded in model
 glm.pred = rep("Down",1250)
-glm.pred[glm.probs > .5]="Up" # create vector of predictions based on model prob greater than a threshold
+glm.pred[glm.probs > .5] = "Up" # create vector of predictions based on model prob greater than a threshold
 
-table(glm.pred,Direction)
-(507+145)/1250
-mean(glm.pred==Direction)
-train=(Year<2005)
-Smarket.2005=Smarket[!train,]
-dim(Smarket.2005)
-Direction.2005=Direction[!train]
-glm.fit=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket,family=binomial,subset=train)
-glm.probs=predict(glm.fit,Smarket.2005,type="response")
+table(glm.pred, Direction) # confusion matrix
+mean(glm.pred == Direction) # % of correct predictions
+
+# subset training data and test data 
+train = (Year<2005) # split data into training data for year before 2005
+Smarket.2005 = Smarket[!train,] # year 2005 is test data
+Direction.2005 = Direction[!train] # actual direction of 2005 data
+
+# fit new glm model based on just training data
+glm.fit = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket,family=binomial,subset=train)
+glm.probs = predict(glm.fit, Smarket.2005, type = "response") # probability vector for test data based on training data
+
+# look at confusion matrix
+glm.pred = rep("Down",252)
+glm.pred[glm.probs>.5] = "Up"
+table(glm.pred, Direction.2005)
+mean(glm.pred==Direction.2005) # number of correct predictions
+mean(glm.pred!=Direction.2005) # incorrect predictions
+
+# fir another glm model just on lag1 and lag2 features
+glm.fit = glm(Direction~Lag1+Lag2,data=Smarket, family=binomial, subset=train)
+glm.probs = predict(glm.fit,Smarket.2005, type="response")
 glm.pred=rep("Down",252)
 glm.pred[glm.probs>.5]="Up"
 table(glm.pred,Direction.2005)
 mean(glm.pred==Direction.2005)
-mean(glm.pred!=Direction.2005)
-glm.fit=glm(Direction~Lag1+Lag2,data=Smarket,family=binomial,subset=train)
-glm.probs=predict(glm.fit,Smarket.2005,type="response")
-glm.pred=rep("Down",252)
-glm.pred[glm.probs>.5]="Up"
-table(glm.pred,Direction.2005)
-mean(glm.pred==Direction.2005)
-106/(106+76)
-predict(glm.fit,newdata=data.frame(Lag1=c(1.2,1.5),Lag2=c(1.1,-0.8)),type="response")
+
+# gives probability for two days of an Up direction based on Lag1 and Lag2 having values supplied (and using model supplied)
+predict(glm.fit, newdata = data.frame(Lag1=c(1.2,1.5), Lag2=c(1.1,-0.8)), type="response")
 
 # Linear Discriminant Analysis
 
