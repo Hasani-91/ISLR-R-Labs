@@ -9,7 +9,9 @@ corrSmarket <- cor(Smarket[,-9]) # correlation of numeric variables
 dimSmarket <- dim(Smarket)
 plot(Volume)
 
+###########################
 ### Logistic Regression ###
+###########################
 
 glm.fit = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Smarket, family=binomial)
 summary(glm.fit)
@@ -45,7 +47,7 @@ table(glm.pred, Direction.2005)
 mean(glm.pred==Direction.2005) # number of correct predictions
 mean(glm.pred!=Direction.2005) # incorrect predictions
 
-# fir another glm model just on lag1 and lag2 features
+# fit another glm model just on lag1 and lag2 features
 glm.fit = glm(Direction~Lag1+Lag2,data=Smarket, family=binomial, subset=train)
 glm.probs = predict(glm.fit,Smarket.2005, type="response")
 glm.pred=rep("Down",252)
@@ -56,10 +58,15 @@ mean(glm.pred==Direction.2005)
 # gives probability for two days of an Up direction based on Lag1 and Lag2 having values supplied (and using model supplied)
 predict(glm.fit, newdata = data.frame(Lag1=c(1.2,1.5), Lag2=c(1.1,-0.8)), type="response")
 
-# Linear Discriminant Analysis
+####################################
+### Linear Discriminant Analysis ###
+####################################
 
 library(MASS)
-lda.fit=lda(Direction~Lag1+Lag2,data=Smarket,subset=train)
+
+# fit LDA model using just lag1 and lag2 variables and training data (pre 2005)
+lda.fit = lda(Direction ~ Lag1+Lag2, data=Smarket, subset=train)
+
 lda.fit
 plot(lda.fit)
 lda.pred=predict(lda.fit, Smarket.2005)
