@@ -1,29 +1,29 @@
 # Chapter 4 Lab: Logistic Regression, LDA, QDA, and KNN
 
 # The Stock Market Data
-
 library(ISLR)
-names(Smarket)
-dim(Smarket)
-summary(Smarket)
-pairs(Smarket)
-cor(Smarket)
-cor(Smarket[,-9])
 attach(Smarket)
+summary(Smarket)
+pairs(Smarket, col = Smarket$Direction)
+corrSmarket <- cor(Smarket[,-9]) # correlation of numeric variables
+dimSmarket <- dim(Smarket)
 plot(Volume)
 
 # Logistic Regression
 
-glm.fit=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket,family=binomial)
+glm.fit = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Smarket, family=binomial)
 summary(glm.fit)
 coef(glm.fit)
-summary(glm.fit)$coef
-summary(glm.fit)$coef[,4]
-glm.probs=predict(glm.fit,type="response")
-glm.probs[1:10]
-contrasts(Direction)
-glm.pred=rep("Down",1250)
-glm.pred[glm.probs>.5]="Up"
+summary(glm.fit)$coef # all coeffs
+summary(glm.fit)$coef[,4] # p values
+
+# vector of probabilities of market being Up or Down based on features supplied to model
+glm.probs = predict(glm.fit, type = "response") 
+
+contrasts(Direction) # shows how qualitative variable Direction is coded in model
+glm.pred = rep("Down",1250)
+glm.pred[glm.probs > .5]="Up" # create vector of predictions based on model prob greater than a threshold
+
 table(glm.pred,Direction)
 (507+145)/1250
 mean(glm.pred==Direction)
