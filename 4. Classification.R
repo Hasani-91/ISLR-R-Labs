@@ -67,7 +67,16 @@ library(MASS)
 # fit LDA model using just lag1 and lag2 variables and training data (pre 2005)
 lda.fit = lda(Direction ~ Lag1+Lag2, data = Smarket, subset = train)
 lda.fit # displays summary of model
-plot(lda.fit) # plots distribution of Up and Down group per LDA model fit
+
+# The plot() function produces plots of the linear discriminants, obtained by computing 
+# −0.642 × Lag1 and −0.514 × Lag2 for each of the training observations.
+# i.e. plots distribution of Up and Down group per LDA model fit
+plot(lda.fit) 
+
+# ? figure out what the plot(lda.fit) is doing
+# look at: http://rstudio-pubs-static.s3.amazonaws.com/35817_2552e05f1d4e4db8ba87b334101a43da.html
+hist(subset(Smarket, train)$Lag1*coef(lda.fit)[1]) #test
+hist(subset(Smarket, train)$Lag2*coef(lda.fit)[2]) #test
 
 lda.pred = predict(lda.fit, Smarket.2005)
 names(lda.pred)
