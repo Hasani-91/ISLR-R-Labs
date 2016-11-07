@@ -65,11 +65,11 @@ predict(glm.fit, newdata = data.frame(Lag1=c(1.2,1.5), Lag2=c(1.1,-0.8)), type="
 library(MASS)
 
 # fit LDA model using just lag1 and lag2 variables and training data (pre 2005)
-lda.fit = lda(Direction ~ Lag1+Lag2, data=Smarket, subset=train)
+lda.fit = lda(Direction ~ Lag1+Lag2, data = Smarket, subset = train)
+lda.fit # displays summary of model
+plot(lda.fit) # plots distribution of Up and Down group per LDA model fit
 
-lda.fit
-plot(lda.fit)
-lda.pred=predict(lda.fit, Smarket.2005)
+lda.pred = predict(lda.fit, Smarket.2005)
 names(lda.pred)
 lda.class=lda.pred$class
 table(lda.class,Direction.2005)
