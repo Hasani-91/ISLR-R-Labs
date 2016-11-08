@@ -65,7 +65,7 @@ predict(glm.fit, newdata = data.frame(Lag1=c(1.2,1.5), Lag2=c(1.1,-0.8)), type="
 library(MASS)
 
 # fit LDA model using just lag1 and lag2 variables and training data (pre 2005)
-lda.fit = lda(Direction ~ Lag1+Lag2, data = Smarket, subset = train)
+lda.fit <- lda(Direction ~ Lag1+Lag2, data = Smarket, subset = train)
 lda.fit # displays summary of model
 
 # The plot() function produces plots of the linear discriminants, obtained by computing 
@@ -75,9 +75,21 @@ plot(lda.fit)
 
 # ? figure out what the plot(lda.fit) is doing
 # look at: http://rstudio-pubs-static.s3.amazonaws.com/35817_2552e05f1d4e4db8ba87b334101a43da.html
-hist(subset(Smarket, train)$Lag1*coef(lda.fit)[1]) #test
-hist(subset(Smarket, train)$Lag2*coef(lda.fit)[2]) #test
 
+c1 <- coef(lda.fit)[1]
+c2 <- coef(lda.fit)[2]
+x <- as.data.frame(subset(Smarket, train)$Lag1*c1 + subset(Smarket, train)$Lag2*c2)
+x1 <- cbind(x, subset(Smarket, train)$Direction)
+colnames(x1) <- c('LD', 'Direction')
+x1Up <- subset(x1, x1$Direction == 'Up')
+x1Down <- subset(x1, x1$Direction == 'Down')
+
+# this matches plot(lda.fit) ???
+par(mfrow=c(2,1)) 
+hist(x1Down$LD, breaks=seq(-4.5,4.5,by=0.5), labels = TRUE, freq = FALSE, col = 'red')
+hist(x1Up$LD, breaks=seq(-4.5,4.5,by=0.5), labels = TRUE, freq = FALSE, ylim = c(0,0.5), col = 'green')
+
+########################################
 lda.pred = predict(lda.fit, Smarket.2005)
 names(lda.pred)
 lda.class=lda.pred$class
