@@ -70,12 +70,12 @@ lda.fit # displays summary of model
 
 # The plot() function produces plots of the linear discriminants, obtained by computing 
 # −0.642 × Lag1 and −0.514 × Lag2 for each of the training observations.
-# i.e. plots distribution of Up and Down group per LDA model fit
+# i.e. plots distribution of Up and Down group per LDA model fit.
+# These coefficients in the linear combination are the values that separate the two groups the best (think of PCA)
+# Example, look at: http://rstudio-pubs-static.s3.amazonaws.com/35817_2552e05f1d4e4db8ba87b334101a43da.html
 plot(lda.fit) 
 
-# ? figure out what the plot(lda.fit) is doing
-# look at: http://rstudio-pubs-static.s3.amazonaws.com/35817_2552e05f1d4e4db8ba87b334101a43da.html
-
+### The below replicates the plot(lda.fit)
 c1 <- coef(lda.fit)[1]
 c2 <- coef(lda.fit)[2]
 x <- as.data.frame(subset(Smarket, train)$Lag1*c1 + subset(Smarket, train)$Lag2*c2)
@@ -83,22 +83,27 @@ x1 <- cbind(x, subset(Smarket, train)$Direction)
 colnames(x1) <- c('LD', 'Direction')
 x1Up <- subset(x1, x1$Direction == 'Up')
 x1Down <- subset(x1, x1$Direction == 'Down')
-
-# this matches plot(lda.fit) ???
 par(mfrow=c(2,1)) 
-hist(x1Down$LD, breaks=seq(-4.5,4.5,by=0.5), labels = TRUE, freq = FALSE, col = 'red')
+hist(x1Down$LD, breaks=seq(-4.5,4.5,by=0.5), labels = TRUE, freq = FALSE, ylim = c(0,0.5), col = 'red')
 hist(x1Up$LD, breaks=seq(-4.5,4.5,by=0.5), labels = TRUE, freq = FALSE, ylim = c(0,0.5), col = 'green')
 
 ########################################
-lda.pred = predict(lda.fit, Smarket.2005)
+lda.pred = predict(lda.fit, Smarket.2005) # make prediction based on our model
 names(lda.pred)
-lda.class=lda.pred$class
-table(lda.class,Direction.2005)
-mean(lda.class==Direction.2005)
-sum(lda.pred$posterior[,1]>=.5)
-sum(lda.pred$posterior[,1]<.5)
+lda.class=lda.pred$class # the predticted class of each observation
+table(lda.class,Direction.2005) # view prediction vs. reality
+mean(lda.class==Direction.2005) # model accuracy
+
+# Applying a 50% threshold to the posterior probabilities allows us to recreate the predictions contained in lda.pred$class.
+# i.e. if the posterior probability of a down move (the first column) is > 50% classify as down
+# then sum these instances. Do the same for the up predictions
+sum(lda.pred$posterior[,1] >= .5) 
+sum(lda.pred$posterior[,1] < .5)
+
+# view output probabilities and classes for prediction
 lda.pred$posterior[1:20,1]
 lda.class[1:20]
+# see how many observations have a higher than 90% chance of being a down move
 sum(lda.pred$posterior[,1]>.9)
 
 # Quadratic Discriminant Analysis
