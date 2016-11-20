@@ -1,16 +1,19 @@
 # Chapter 6 Lab 1: Subset Selection Methods
-
+rm(list=ls())
+   
+library(ISLR)
+library(leaps)
+library(glmnet)
+library(pls)
 # Best Subset Selection
 
-library(ISLR)
-fix(Hitters)
+head(Hitters, 15)
 names(Hitters)
 dim(Hitters)
 sum(is.na(Hitters$Salary))
 Hitters=na.omit(Hitters)
 dim(Hitters)
 sum(is.na(Hitters))
-library(leaps)
 regfit.full=regsubsets(Salary~.,Hitters)
 summary(regfit.full)
 regfit.full=regsubsets(Salary~.,data=Hitters,nvmax=19)
@@ -95,7 +98,6 @@ y=Hitters$Salary
 
 # Ridge Regression
 
-library(glmnet)
 grid=10^seq(10,-2,length=100)
 ridge.mod=glmnet(x,y,alpha=0,lambda=grid)
 dim(coef(ridge.mod))
@@ -150,7 +152,6 @@ lasso.coef[lasso.coef!=0]
 
 # Principal Components Regression
 
-library(pls)
 set.seed(2)
 pcr.fit=pcr(Salary~., data=Hitters,scale=TRUE,validation="CV")
 summary(pcr.fit)
