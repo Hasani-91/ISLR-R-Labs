@@ -63,46 +63,74 @@ coef(regfit.fwd,7)
 coef(regfit.bwd,7)
 
 # Choosing Among Models
+# Note: there is no predict() method for regsubsets(), hence end up writing own function
 
 set.seed(1)
 train=sample(c(TRUE,FALSE), nrow(Hitters),rep=TRUE)
 test=(!train)
-regfit.best=regsubsets(Salary~.,data=Hitters[train,],nvmax=19)
-test.mat=model.matrix(Salary~.,data=Hitters[test,])
-val.errors=rep(NA,19)
+# fit best subset selection for each model up to 19 variables on training subset
+regfit.best = regsubsets(Salary~., data = Hitters[train,], nvmax=19)
+
+# make a model matrix from the test data - this has subsetted the original data
+# and encoded the qual variables ready for regression, plus added intercept coeff
+test.mat = model.matrix(Salary~., data = Hitters[test,])
+
+# compute the validation set error for the best model of each model size
+val.errors=rep(NA,19) # set up results vector
+
+# Now we run a loop, and for each size i, we extract the coefficients from regfit.best 
+# for the best model of that size, multiply them into the appropriate columns of the 
+# test model matrix to form the predictions, and compute the test MSE.
 for(i in 1:19){
-    coefi=coef(regfit.best,id=i)
-    pred=test.mat[,names(coefi)]%*%coefi
-    val.errors[i]=mean((Hitters$Salary[test]-pred)^2)
+    coefi = coef(regfit.best, id=i) # extract fitted model coeffs from training data
+    pred = test.mat[,names(coefi)]%*%coefi # make prediction on test data
+    val.errors[i] = mean((Hitters$Salary[test] - pred)^2) # compute test MSE
 }
-val.errors
-which.min(val.errors)
-coef(regfit.best,10)
-predict.regsubsets=function(object,newdata,id,...){
-    form=as.formula(object$call[[2]])
-    mat=model.matrix(form,newdata)
-    coefi=coef(object,id=id)
-    xvars=names(coefi)
-    mat[,xvars]%*%coefi
+
+val.errors # view MSE for all models
+minBSS <- which.min(val.errors) # find best model
+coef(regfit.best, minBSS) # view coeffs of model with best test MSE from all BSS models
+
+### Now write our own predict method to capture the work we did above
+# takes a regression model as object, data to predict on and makes prediction
+
+predict.regsubsets = function(object, newdata, id, ...) {
+    form = as.formula(object$call[[2]]) # extracts formula from fitted model, e.g. Salary ~ .
+    mat = model.matrix(form, newdata) # sets up design matrix
+    coefi = coef(object, id = id) # extract fitted model coeffs from training data
+    xvars = names(coefi)
+    mat[,xvars]%*%coefi # make prediction
 }
-regfit.best=regsubsets(Salary~.,data=Hitters,nvmax=19)
-coef(regfit.best,10)
-k=10
+
+# Now perform BSS on full data set & select best 10 variable model
+regfit.best = regsubsets(Salary~., data=Hitters, nvmax = 19)
+coef(regfit.best, 10) # view coeffs (obv diff to best 10 variable model on training data)
+
+# Now forget 10 variable model and try to choose among the models of different sizes 
+# using crossvalidation with k folds
+k = 10
 set.seed(1)
-folds=sample(1:k,nrow(Hitters),replace=TRUE)
-cv.errors=matrix(NA,k,19, dimnames=list(NULL, paste(1:19)))
+folds = sample(1:k, nrow(Hitters), replace = TRUE)
+# create results matrix, we're going to have k errors for each of the 19 BSS models
+cv.errors = matrix(NA, k, 19, dimnames = list(NULL, paste(1:19))) 
+
+# For each of the k folds, fit all 19 BSS models to training data (i.e. everything except the kth fold)
+# then for each of the 19 models, predict on the test (fold) data & compute test MSE
 for(j in 1:k){
-    best.fit=regsubsets(Salary~.,data=Hitters[folds!=j,],nvmax=19)
+    best.fit = regsubsets(Salary~., data = Hitters[folds != j,], nvmax = 19)
     for(i in 1:19){
-        pred=predict(best.fit,Hitters[folds==j,],id=i)
-        cv.errors[j,i]=mean( (Hitters$Salary[folds==j]-pred)^2)
+        pred = predict(best.fit, Hitters[folds == j,], id = i) # predict using our custom function
+        cv.errors[j,i] = mean((Hitters$Salary[folds == j] - pred)^2) # compute test MSE
     }
 }
-mean.cv.errors=apply(cv.errors,2,mean)
-mean.cv.errors
-par(mfrow=c(1,1))
-plot(mean.cv.errors,type='b')
-reg.best=regsubsets(Salary~.,data=Hitters, nvmax=19)
+
+mean.cv.errors = apply(cv.errors, 2, mean) # average errors of each model across folds
+mean.cv.errors # view results
+par(mfrow = c(1,1))
+plot(mean.cv.errors, type = 'b') # plot results (best is 11 variable model)
+
+# now fit to full data to get coeffs of 11 variable model
+reg.best = regsubsets(Salary~., data = Hitters, nvmax = 19)
 coef(reg.best,11)
 
 
