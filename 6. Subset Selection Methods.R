@@ -45,28 +45,37 @@ BIC.min <- which.min(reg.summary$bic)
 plot(reg.summary$bic,xlab="Number of Variables",ylab="BIC",type='l')
 points(BIC.min,reg.summary$bic[BIC.min],col="red",cex=2,pch=20)
 
-# shows which features are in 
-plot(regfit.full,scale="r2") # how does this know to use plot.regsubsets?
+# shows which features are in full model with 1 to 19 variables
+graphics::plot(regfit.full,scale="r2")
 plot(regfit.full,scale="adjr2")
 plot(regfit.full,scale="Cp")
 plot(regfit.full,scale="bic")
 coef(regfit.full,6)
 
+##### 
 # Forward and Backward Stepwise Selection
 
-regfit.fwd=regsubsets(Salary~.,data=Hitters,nvmax=19,method="forward")
+# forward stepwise and output
+regfit.fwd = regsubsets(Salary~.,data=Hitters,nvmax=19,method="forward")
 summary(regfit.fwd)
-regfit.bwd=regsubsets(Salary~.,data=Hitters,nvmax=19,method="backward")
+
+# backward stepwise and output
+regfit.bwd = regsubsets(Salary~., data=Hitters, nvmax=19, method="backward")
 summary(regfit.bwd)
-coef(regfit.full,7)
-coef(regfit.fwd,7)
-coef(regfit.bwd,7)
 
-# Choosing Among Models
+# coefficients of models with 7 features/variables
+coef(regfit.full, 7)
+coef(regfit.fwd, 7)
+coef(regfit.bwd, 7)
 
+#####
+### Choosing Among Models
+
+# create random sample to create training and test data
 set.seed(1)
-train=sample(c(TRUE,FALSE), nrow(Hitters),rep=TRUE)
-test=(!train)
+train = sample(c(TRUE,FALSE), nrow(Hitters) ,rep=TRUE)
+test = (!train)
+
 regfit.best=regsubsets(Salary~.,data=Hitters[train,],nvmax=19)
 test.mat=model.matrix(Salary~.,data=Hitters[test,])
 val.errors=rep(NA,19)
