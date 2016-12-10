@@ -1,4 +1,3 @@
-# Chapter 6 Lab 1: Subset Selection Methods
 rm(list=ls())
    
 library(ISLR)
@@ -6,6 +5,7 @@ library(leaps)
 library(glmnet)
 library(pls)
 #####
+# Chapter 6 Lab 1: Subset Selection Methods
 # Best Subset Selection (want to predict salary variable)
 
 # Data clean-up
@@ -133,38 +133,67 @@ plot(mean.cv.errors, type = 'b') # plot results (best is 11 variable model)
 reg.best = regsubsets(Salary~., data = Hitters, nvmax = 19)
 coef(reg.best,11)
 
-
+#####
 # Chapter 6 Lab 2: Ridge Regression and the Lasso
+# use glmnet package (has slightly different syntax from other model fitting functions)
+# If alpha = 0 then a ridge regression model is fit, and if alpha = 1 then a lasso model is fit.
 
-x=model.matrix(Salary~.,Hitters)[,-1]
-y=Hitters$Salary
+# The model.matrix() function is particularly useful for creating x; not only does it produce a 
+# matrix corresponding to the 19 predictors but it also automatically transforms any 
+# qualitative variables into dummy variables.
+
+# creates design matrix and removes intercept term as don't shrink this in RR
+x = model.matrix(Salary~., Hitters)[,-1] 
+y = Hitters$Salary
 
 # Ridge Regression
 
-grid=10^seq(10,-2,length=100)
-ridge.mod=glmnet(x,y,alpha=0,lambda=grid)
-dim(coef(ridge.mod))
+grid = 10^seq(10, -2, length = 100) # set grid of lambda values to fit over (from 10^10 to 10^-2)
+ridge.mod = glmnet(x, y, alpha = 0, lambda = grid) # perform ridge regression
+dim(coef(ridge.mod)) # so we have returned 20 coeffs for each value of lambda (incl. intercept)
+
+# view coeffs for a large value of lambda (λ = 11,498) and calc L2 norm
 ridge.mod$lambda[50]
-coef(ridge.mod)[,50]
-sqrt(sum(coef(ridge.mod)[-1,50]^2))
+coef(ridge.mod)[, 50]
+sqrt(sum(coef(ridge.mod)[-1, 50]^2)) # L2 norm (don't include intercept!)
+
+# view coeffs for a smaller value of lambda (λ = 705) and calc L2 norm, should be larger
 ridge.mod$lambda[60]
-coef(ridge.mod)[,60]
-sqrt(sum(coef(ridge.mod)[-1,60]^2))
-predict(ridge.mod,s=50,type="coefficients")[1:20,]
+coef(ridge.mod)[, 60]
+sqrt(sum(coef(ridge.mod)[-1, 60]^2)) # L2 norm (don't include intercept!)
+
+# can predict RR coeffs for a new value of lambda, say λ = 50
+predict(ridge.mod, s = 50, type = "coefficients")[1:20,]
+
+# Now split the samples into a training set and a test set in order to estimate the test error 
+# of ridge regression and the lasso
 set.seed(1)
-train=sample(1:nrow(x), nrow(x)/2)
-test=(-train)
-y.test=y[test]
-ridge.mod=glmnet(x[train,],y[train],alpha=0,lambda=grid, thresh=1e-12)
-ridge.pred=predict(ridge.mod,s=4,newx=x[test,])
-mean((ridge.pred-y.test)^2)
+train = sample(1:nrow(x), nrow(x)/2)
+test = (-train)
+y.test = y[test] # salary values for test sample
+
+# fit ride model on training data
+ridge.mod = glmnet(x[train,], y[train], alpha = 0,lambda = grid, thresh = 1e-12)
+# evaluate MSE on the test set, using λ = 4
+ridge.pred = predict(ridge.mod, s = 4, newx = x[test,])
+mean((ridge.pred - y.test)^2)
+
+# for comparison fit model with just an intercept (i.e. predict each test observation using
+# the mean of the training observations)
 mean((mean(y[train])-y.test)^2)
-ridge.pred=predict(ridge.mod,s=1e10,newx=x[test,])
-mean((ridge.pred-y.test)^2)
-ridge.pred=predict(ridge.mod,s=0,newx=x[test,],exact=T)
-mean((ridge.pred-y.test)^2)
-lm(y~x, subset=train)
-predict(ridge.mod,s=0,exact=T,type="coefficients")[1:20,]
+# fit model for large lambda (essentially shrinks all coeffs to 0, hence same as just using intercept)
+ridge.pred = predict(ridge.mod, s = 1e10, newx = x[test,])
+mean((ridge.pred - y.test)^2)
+
+# Now check if using λ = 4 is better than least squares
+# calculate both using predicted coeffs from our fitted model and the lm function just to compare
+ridge.pred = predict(ridge.mod, s = 0, newx = x[test,], exact = T)
+mean((ridge.pred - y.test)^2) # so shrinkage does help
+lm(y ~ x, subset = train) # fit lm model just to compare
+predict(ridge.mod, s = 0, exact = T, type = "coefficients")[1:20,]
+
+# Now instead of arbitrarily setting λ = 4, use CV to choose λ
+# By default the function cv.glmnet() performs ten-fold cross-validation
 set.seed(1)
 cv.out=cv.glmnet(x[train,],y[train],alpha=0)
 plot(cv.out)
