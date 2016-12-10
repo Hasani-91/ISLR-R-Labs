@@ -1,4 +1,4 @@
-rm(list=ls())
+rm(list = ls())
    
 library(ISLR)
 library(leaps)
@@ -12,7 +12,7 @@ library(pls)
 Hitters <- Hitters
 dim(Hitters)
 sum(is.na(Hitters$Salary)) # how many NAs we have
-Hitters=na.omit(Hitters) # remove variables with NA for salary
+Hitters = na.omit(Hitters) # remove variables with NA for salary
 sum(is.na(Hitters)) # check if anymore NAs
 
 # The regsubsets function (leaps library) performs best subset selection by identifying 
@@ -195,54 +195,65 @@ predict(ridge.mod, s = 0, exact = T, type = "coefficients")[1:20,]
 # Now instead of arbitrarily setting λ = 4, use CV to choose λ
 # By default the function cv.glmnet() performs ten-fold cross-validation
 set.seed(1)
-cv.out=cv.glmnet(x[train,],y[train],alpha=0)
-plot(cv.out)
-bestlam=cv.out$lambda.min
+cv.out = cv.glmnet(x[train,], y[train], alpha = 0) # perform CV for RR
+plot(cv.out) # note scale is log(λ)
+bestlam = cv.out$lambda.min # view best model 
 bestlam
-ridge.pred=predict(ridge.mod,s=bestlam,newx=x[test,])
-mean((ridge.pred-y.test)^2)
-out=glmnet(x,y,alpha=0)
-predict(out,type="coefficients",s=bestlam)[1:20,]
+
+# We see that the value of λ that results in the smallest CV error is 212
+# Now calc test MSE associated with this value of λ
+
+ridge.pred = predict(ridge.mod, s = bestlam, newx = x[test,])
+mean((ridge.pred - y.test)^2) # test MSE with λ = 212
+
+# Finally, refit our ridge regression model on the full data set, using the value of λ 
+# chosen by CV, and examine the coefficient estimates.
+out = glmnet(x, y, alpha = 0)
+predict(out, type = "coefficients", s = bestlam)[1:20,]
 
 # The Lasso
-
-lasso.mod=glmnet(x[train,],y[train],alpha=1,lambda=grid)
+# now use alpha = 1 and see if better than ridge regression
+lasso.mod = glmnet(x[train,], y[train], alpha = 1, lambda = grid)
 plot(lasso.mod)
+# perform CV and compute associated test MSE
 set.seed(1)
-cv.out=cv.glmnet(x[train,],y[train],alpha=1)
+cv.out = cv.glmnet(x[train,], y[train], alpha = 1)
 plot(cv.out)
-bestlam=cv.out$lambda.min
-lasso.pred=predict(lasso.mod,s=bestlam,newx=x[test,])
-mean((lasso.pred-y.test)^2)
-out=glmnet(x,y,alpha=1,lambda=grid)
-lasso.coef=predict(out,type="coefficients",s=bestlam)[1:20,]
-lasso.coef
-lasso.coef[lasso.coef!=0]
+bestlam = cv.out$lambda.min
+lasso.pred = predict(lasso.mod, s = bestlam, newx = x[test,]) # predict for best lambda
+mean((lasso.pred - y.test)^2) # compute test MSE
 
+out = glmnet(x, y, alpha = 1, lambda = grid) # fit over full data using grid of lambdas
+lasso.coef = predict(out,type = "coefficients", s = bestlam)[1:20,] # predict using best lambda from CV
+lasso.coef # has set some coeffs to exactly 0
+lasso.coef[lasso.coef != 0] 
 
+#####
 # Chapter 6 Lab 3: PCR and PLS Regression
 
 # Principal Components Regression
 
 set.seed(2)
-pcr.fit=pcr(Salary~., data=Hitters,scale=TRUE,validation="CV")
+# fits pcr model and computes 10 fold CV for each component used
+pcr.fit = pcr(Salary~., data = Hitters, scale = TRUE, validation = "CV")
 summary(pcr.fit)
-validationplot(pcr.fit,val.type="MSEP")
+
+validationplot(pcr.fit,val.type = "MSEP")
 set.seed(1)
-pcr.fit=pcr(Salary~., data=Hitters,subset=train,scale=TRUE, validation="CV")
-validationplot(pcr.fit,val.type="MSEP")
-pcr.pred=predict(pcr.fit,x[test,],ncomp=7)
+pcr.fit = pcr(Salary~., data = Hitters,subset = train,scale = TRUE, validation = "CV")
+validationplot(pcr.fit,val.type = "MSEP")
+pcr.pred = predict(pcr.fit,x[test,],ncomp = 7)
 mean((pcr.pred-y.test)^2)
-pcr.fit=pcr(y~x,scale=TRUE,ncomp=7)
+pcr.fit = pcr(y~x,scale = TRUE,ncomp = 7)
 summary(pcr.fit)
 
 # Partial Least Squares
 
 set.seed(1)
-pls.fit=plsr(Salary~., data=Hitters,subset=train,scale=TRUE, validation="CV")
+pls.fit = plsr(Salary~., data = Hitters,subset = train,scale = TRUE, validation = "CV")
 summary(pls.fit)
-validationplot(pls.fit,val.type="MSEP")
-pls.pred=predict(pls.fit,x[test,],ncomp=2)
+validationplot(pls.fit,val.type = "MSEP")
+pls.pred = predict(pls.fit,x[test,],ncomp = 2)
 mean((pls.pred-y.test)^2)
-pls.fit=plsr(Salary~., data=Hitters,scale=TRUE,ncomp=2)
+pls.fit = plsr(Salary~., data = Hitters,scale = TRUE,ncomp = 2)
 summary(pls.fit)
