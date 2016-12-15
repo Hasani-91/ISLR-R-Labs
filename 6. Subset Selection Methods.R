@@ -7,7 +7,6 @@ library(pls)
 #####
 # Chapter 6 Lab 1: Subset Selection Methods
 # Best Subset Selection (want to predict salary variable)
-
 # Data clean-up
 Hitters <- Hitters
 dim(Hitters)
@@ -45,27 +44,45 @@ BIC.min <- which.min(reg.summary$bic)
 plot(reg.summary$bic,xlab="Number of Variables",ylab="BIC",type='l')
 points(BIC.min,reg.summary$bic[BIC.min],col="red",cex=2,pch=20)
 
-# shows which features are in 
-plot(regfit.full,scale="r2") # how does this know to use plot.regsubsets?
+# shows which features are in full model with 1 to 19 variables
+graphics::plot(regfit.full,scale="r2")
 plot(regfit.full,scale="adjr2")
 plot(regfit.full,scale="Cp")
 plot(regfit.full,scale="bic")
 coef(regfit.full,6)
 
+##### 
 # Forward and Backward Stepwise Selection
 
-regfit.fwd=regsubsets(Salary~.,data=Hitters,nvmax=19,method="forward")
+# forward stepwise and output
+regfit.fwd = regsubsets(Salary~.,data=Hitters,nvmax=19,method="forward")
 summary(regfit.fwd)
-regfit.bwd=regsubsets(Salary~.,data=Hitters,nvmax=19,method="backward")
+
+# backward stepwise and output
+regfit.bwd = regsubsets(Salary~., data=Hitters, nvmax=19, method="backward")
 summary(regfit.bwd)
-coef(regfit.full,7)
-coef(regfit.fwd,7)
-coef(regfit.bwd,7)
+
+# coefficients of models with 7 features/variables
+coef(regfit.full, 7)
+coef(regfit.fwd, 7)
+coef(regfit.bwd, 7)
+
+#####
+### Choosing Among Models
 
 # Choosing Among Models
 # Note: there is no predict() method for regsubsets(), hence end up writing own function
 
+# create random sample to create training and test data
 set.seed(1)
+
+train = sample(c(TRUE,FALSE), nrow(Hitters) ,rep=TRUE)
+test = (!train)
+
+regfit.best=regsubsets(Salary~.,data=Hitters[train,],nvmax=19)
+test.mat=model.matrix(Salary~.,data=Hitters[test,])
+val.errors=rep(NA,19)
+
 train=sample(c(TRUE,FALSE), nrow(Hitters),rep=TRUE)
 test=(!train)
 # fit best subset selection for each model up to 19 variables on training subset
@@ -81,6 +98,7 @@ val.errors=rep(NA,19) # set up results vector
 # Now we run a loop, and for each size i, we extract the coefficients from regfit.best 
 # for the best model of that size, multiply them into the appropriate columns of the 
 # test model matrix to form the predictions, and compute the test MSE.
+
 for(i in 1:19){
     coefi = coef(regfit.best, id=i) # extract fitted model coeffs from training data
     pred = test.mat[,names(coefi)]%*%coefi # make prediction on test data
@@ -234,26 +252,37 @@ lasso.coef[lasso.coef != 0]
 # Principal Components Regression
 
 set.seed(2)
-# fits pcr model and computes 10 fold CV for each component used
+# fits PCR model and computes 10 fold CV for each component used (default is 10 fold CV)
+# scale=TRUE has the effect of standardizing each predictor
 pcr.fit = pcr(Salary~., data = Hitters, scale = TRUE, validation = "CV")
 summary(pcr.fit)
+validationplot(pcr.fit, val.type = "MSEP") # plot results of CV error per component
 
-validationplot(pcr.fit,val.type = "MSEP")
+# now perform PCR on the training data and evaluate its test set performance
 set.seed(1)
-pcr.fit = pcr(Salary~., data = Hitters,subset = train,scale = TRUE, validation = "CV")
-validationplot(pcr.fit,val.type = "MSEP")
-pcr.pred = predict(pcr.fit,x[test,],ncomp = 7)
-mean((pcr.pred-y.test)^2)
-pcr.fit = pcr(y~x,scale = TRUE,ncomp = 7)
+pcr.fit = pcr(Salary~., data = Hitters, subset = train, scale = TRUE, validation = "CV")
+validationplot(pcr.fit, val.type = "MSEP") # plot of results of CV error per component for training data
+
+# we see the CV training error is low for a model with 7 components, predict using this model
+pcr.pred = predict(pcr.fit, x[test,], ncomp = 7)
+mean((pcr.pred - y.test)^2) # compute test MSE
+
+# Finally fit PCR on the full data set, using M = 7, the number of components identified by CV
+pcr.fit = pcr(y ~ x, scale = TRUE, ncomp = 7)
 summary(pcr.fit)
 
 # Partial Least Squares
 
+# perform PLS on training data and use CV to select number of components
 set.seed(1)
-pls.fit = plsr(Salary~., data = Hitters,subset = train,scale = TRUE, validation = "CV")
+pls.fit = plsr(Salary~., data = Hitters, subset = train, scale = TRUE, validation = "CV")
 summary(pls.fit)
-validationplot(pls.fit,val.type = "MSEP")
-pls.pred = predict(pls.fit,x[test,],ncomp = 2)
-mean((pls.pred-y.test)^2)
-pls.fit = plsr(Salary~., data = Hitters,scale = TRUE,ncomp = 2)
+validationplot(pls.fit, val.type = "MSEP")
+
+# using number of components selected, predict and compute test MSE
+pls.pred = predict(pls.fit, x[test,], ncomp = 2)
+mean((pls.pred - y.test)^2)
+
+# fit model on full data using using M = 2, the number of components identified by CV
+pls.fit = plsr(Salary~., data = Hitters, scale = TRUE, ncomp = 2)
 summary(pls.fit)
