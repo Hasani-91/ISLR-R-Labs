@@ -28,33 +28,48 @@ summary(svmfit1)
 
 # write custom function to make grid for displaying SVM
 make.grid <- function(x, n = 75){
-    grange = apply(x, 2, range) # find edges of data
+    grange = apply(x, 2, range) # find range of data
     x1 = seq(from = grange[1,1], to = grange[2,1], length = n)
     x2 = seq(from = grange[1,2], to = grange[2,2], length = n)
-    expand.grid(x.1 = x1, x.2 = x2)
+    expand.grid(x.1 = x1, x.2 = x2) # create grid as df
 }
-xgrid = make.grid(x)
-ygrid = predict(svmfit, xgrid)
-plot(xgrid, col = c('red', 'blue')[as.numeric(ygrid)], pch = 20, cex = 0.2)
-points(x, col = y + 3, pch = 19)
-points(x[svmfit$index,], pch = 5, cex = 2)
+xgrid = make.grid(x) 
 
+### plot SVM again this time with our custom function, which rotates axis vs. default plot which has x.2 on x-axis
+ygrid = predict(svmfit, xgrid) # predict classifications based on fitted model
+plot(xgrid, col = c('red', 'blue')[as.numeric(ygrid)], pch = 20, cex = 0.2) # plot grid
+# note col = c('red', 'blue')[as.numeric(ygrid)] recycles the red & blue chr string to set dot colours
+points(x, col = y + 3, pch = 19) # plot original data
+points(x[svmfit$index,], pch = 5, cex = 2) # plot support vectors
+
+
+### Now we perform CV in order to set cost parameter (that controls margin width) using default function in e1071 package
+# default is 10-fold CV. The we view output of all models and of best model
+# note: gamma parameter not needed for linear model (default is 1/data dim)
 set.seed(1)
-tune.out = tune(svm,y~., data = dat, kernel = "linear", ranges = list(cost = c(0.001, 0.01, 0.1, 1,5,10,100)))
-summary(tune.out)
-bestmod = tune.out$best.model
-summary(bestmod)
+tune.out = tune(svm, y~., data = dat, kernel = "linear", ranges = list(cost = c(0.001, 0.01, 0.1, 1,5,10,100)))
+summary(tune.out) 
+bestmod = tune.out$best.model # access best model from CV
+summary(bestmod) # view best model
+
+### Now we generate a test data set on which to make predictions
 xtest = matrix(rnorm(20*2), ncol = 2)
 ytest = sample(c(-1,1), 20, rep = TRUE)
-xtest[ytest =  = 1,] = xtest[ytest =  = 1,] + 1
-testdat = data.frame(x = xtest, y = as.factor(ytest))
-ypred = predict(bestmod,testdat)
+xtest[ytest == 1,] = xtest[ytest == 1,] + 1
+testdat = data.frame(x = xtest, y = as.factor(ytest)) # save test data as df
+ypred = predict(bestmod, testdat) # make predictions on test data using best model
+table(predict = ypred, truth = testdat$y) # view results
+
+# retest to see results if we had used a different cost parameter of .01
+svmfit = svm(y~., data = dat, kernel = "linear", cost = .01, scale = FALSE)
+ypred = predict(svmfit, testdat)
 table(predict = ypred, truth = testdat$y)
-svmfit = svm(y~., data = dat, kernel = "linear", cost = .01,scale = FALSE)
-ypred = predict(svmfit,testdat)
-table(predict = ypred, truth = testdat$y)
-x[y =  = 1,] = x[y =  = 1,]+0.5
-plot(x, col = (y+5)/2, pch = 19)
+
+# Now consider a situation in which the 2 classes are linearly separable. Then we can find a separating hyperplane 
+# using the svm() function. We first further separate the 2 classes in our simulated data so they are linearly separable:
+
+x[y == 1,] = x[y == 1,] + 0.5
+plot(x, col = (y + 5)/2, pch = 19) # in this contrived example the data is now barely linearly separable
 dat = data.frame(x = x,y = as.factor(y))
 svmfit = svm(y~., data = dat, kernel = "linear", cost = 1e5)
 summary(svmfit)
