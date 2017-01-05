@@ -3,7 +3,7 @@ rm(list = ls())
 library(e1071)
 
 #####
-# Support Vector Classifier
+# 1. Support Vector Classifier
 
 set.seed(1011)
 x = matrix(rnorm(20*2), ncol = 2) # generate 2 columns of random data with 20 observations
@@ -27,7 +27,7 @@ svmfit1$index
 summary(svmfit1)
 
 # write custom function to make grid for displaying SVM
-make.grid <- function(x, n = 75){
+make.grid <- function(x, n = 150){
     grange = apply(x, 2, range) # find range of data
     x1 = seq(from = grange[1,1], to = grange[2,1], length = n)
     x2 = seq(from = grange[1,2], to = grange[2,2], length = n)
@@ -70,27 +70,58 @@ table(predict = ypred, truth = testdat$y)
 
 x[y == 1,] = x[y == 1,] + 0.5
 plot(x, col = (y + 5)/2, pch = 19) # in this contrived example the data is now barely linearly separable
-dat = data.frame(x = x,y = as.factor(y))
-svmfit = svm(y~., data = dat, kernel = "linear", cost = 1e5)
+dat = data.frame(x = x,y = as.factor(y)) # store as df
+
+# We fit the support vector classifier & plot the resulting hyperplane, using a very large value
+# of cost so that no observations are misclassified.
+svmfit = svm(y~., data = dat, kernel = "linear", cost = 1e5) 
 summary(svmfit)
 plot(svmfit, dat)
+
+# plot same thing using our custom function
+xgrid = make.grid(x)
+ygrid = predict(svmfit, xgrid) # predict classifications based on fitted model
+plot(xgrid, col = c('red', 'blue')[as.numeric(ygrid)], pch = 20, cex = 0.2)
+points(x, col = y + 3, pch = 19) # plot original data
+points(x[svmfit$index,], pch = 5, cex = 2) # plot support vectors
+
+# now try a smaller value of cost (misclassifies but will be more robust on test data)
 svmfit = svm(y~., data = dat, kernel = "linear", cost = 1)
 summary(svmfit)
-plot(svmfit,dat)
+plot(svmfit, dat)
 
-# Support Vector Machine
+# plot using custom  function
+ygrid = predict(svmfit, xgrid) # predict classifications based on fitted model
+plot(xgrid, col = c('red', 'blue')[as.numeric(ygrid)], pch = 20, cex = 0.2)
+points(x, col = y + 3, pch = 19) # plot original data
+points(x[svmfit$index,], pch = 5, cex = 2) # plot support vectors
 
+#####
+# 2. Support Vector Machine
+
+# first generate some data with a non-linear class boundary and plot
 set.seed(1)
 x = matrix(rnorm(200*2), ncol = 2)
-x[1:100,] = x[1:100,]+2
-x[101:150,] = x[101:150,]-2
-y = c(rep(1,150),rep(2,50))
-dat = data.frame(x = x,y = as.factor(y))
+x[1:100,] = x[1:100,] + 2 # shift a bit to right
+x[101:150,] = x[101:150,] - 2 # shift a bit to left
+y = c(rep(1, 150), rep(2,50))
+dat = data.frame(x = x, y = as.factor(y))
 plot(x, col = y)
-train = sample(200,100)
+
+train = sample(200, 100) # split data in half randomly
+
+# Fit SVM with a radial kernel and γ = 1:
 svmfit = svm(y~., data = dat[train,], kernel = "radial",  gamma = 1, cost = 1)
 plot(svmfit, dat[train,])
 summary(svmfit)
+
+# try to plot using custom function, doesn't seem to look right?
+xgrid = make.grid(x)
+ygrid = predict(svmfit, xgrid) # predict classifications based on fitted model
+plot(xgrid, col = c('red', 'blue')[as.numeric(ygrid)], pch = 20, cex = 0.2)
+points(x, col = y + 3, pch = 19) # plot original data
+points(x[svmfit$index,], pch = 5, cex = 2) # plot support vectors
+
 svmfit = svm(y~., data = dat[train,], kernel = "radial",gamma = 1,cost = 1e5)
 plot(svmfit,dat[train,])
 set.seed(1)
@@ -98,7 +129,8 @@ tune.out = tune(svm, y~., data = dat[train,], kernel = "radial", ranges = list(c
 summary(tune.out)
 table(true = dat[-train,"y"], pred = predict(tune.out$best.model,newdata = dat[-train,]))
 
-# ROC Curves
+#####
+# 3. ROC Curves
 
 library(ROCR)
 rocplot = function(pred, truth, ...){
@@ -117,19 +149,21 @@ rocplot(fitted,dat[-train,"y"],main = "Test Data")
 fitted = attributes(predict(svmfit.flex,dat[-train,],decision.values = T))$decision.values
 rocplot(fitted,dat[-train,"y"],add = T,col = "red")
 
-# SVM with Multiple Classes
+#####
+# 4. SVM with Multiple Classes
 
 set.seed(1)
 x = rbind(x, matrix(rnorm(50*2), ncol = 2))
 y = c(y, rep(0,50))
-x[y =  = 0,2] = x[y =  = 0,2]+2
+x[y == 0,2] = x[y == 0,2]+2
 dat = data.frame(x = x, y = as.factor(y))
 par(mfrow = c(1,1))
 plot(x,col = (y+1))
 svmfit = svm(y~., data = dat, kernel = "radial", cost = 10, gamma = 1)
 plot(svmfit, dat)
 
-# Application to Gene Expression Data
+#####
+# 5. Application to Gene Expression Data
 
 library(ISLR)
 names(Khan)
