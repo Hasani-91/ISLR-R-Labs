@@ -27,7 +27,7 @@ svmfit1$index
 summary(svmfit1)
 
 # write custom function to make grid for displaying SVM
-make.grid <- function(x, n = 150){
+make.grid <- function(x, n = 125){
     grange = apply(x, 2, range) # find range of data
     x1 = seq(from = grange[1,1], to = grange[2,1], length = n)
     x2 = seq(from = grange[1,2], to = grange[2,2], length = n)
@@ -108,76 +108,123 @@ y = c(rep(1, 150), rep(2,50))
 dat = data.frame(x = x, y = as.factor(y))
 plot(x, col = y)
 
-train = sample(200, 100) # split data in half randomly
+train = sample(200, 100) # split data in half randomly for training
 
 # Fit SVM with a radial kernel and γ = 1:
 svmfit = svm(y~., data = dat[train,], kernel = "radial",  gamma = 1, cost = 1)
 plot(svmfit, dat[train,])
 summary(svmfit)
 
-# try to plot using custom function, doesn't seem to look right?
-xgrid = make.grid(x)
+# Plot also using custom function
+d <- dat[train,]
+xgrid = make.grid(d[,-3])
 ygrid = predict(svmfit, xgrid) # predict classifications based on fitted model
 plot(xgrid, col = c('red', 'blue')[as.numeric(ygrid)], pch = 20, cex = 0.2)
-points(x, col = y + 3, pch = 19) # plot original data
-points(x[svmfit$index,], pch = 5, cex = 2) # plot support vectors
+points(d[,-3], col = d$y, pch = 19) # plot original data (note need to change colour ref)
+points(d[svmfit$index,], pch = 5, cex = 2) # plot support vectors
 
-svmfit = svm(y~., data = dat[train,], kernel = "radial",gamma = 1,cost = 1e5)
-plot(svmfit,dat[train,])
+# Now set high cost parameter to reduce the number of training errors (though risk overfitting)
+svmfit = svm(y~., data = dat[train,], kernel = "radial", gamma = 1, cost = 1e5)
+plot(svmfit, dat[train,])
+ygrid = predict(svmfit, xgrid) # predict classifications based on fitted model
+plot(xgrid, col = c('red', 'blue')[as.numeric(ygrid)], pch = 20, cex = 0.2)
+points(d[,-3], col = d$y, pch = 19) # plot original data (note need to change colour ref)
+points(d[svmfit$index,], pch = 5, cex = 2) # plot support vectors
+
+# Use CV to choose γ and cost parameter
 set.seed(1)
-tune.out = tune(svm, y~., data = dat[train,], kernel = "radial", ranges = list(cost = c(0.1,1,10,100,1000),gamma = c(0.5,1,2,3,4)))
+tune.out = tune(svm, y~., data = dat[train,], kernel = "radial", ranges = list(cost = c(0.1,1,10,100,1000), gamma = c(0.5,1,2,3,4)))
 summary(tune.out)
-table(true = dat[-train,"y"], pred = predict(tune.out$best.model,newdata = dat[-train,]))
+# calculate test set predictions for model and summarise in table
+table(true = dat[-train, "y"], pred = predict(tune.out$best.model, newdata = dat[-train,]))
 
 #####
 # 3. ROC Curves
-
 library(ROCR)
+
+# function to plot an ROC curve given a vector containing a numerical score for each observation, 
+# pred, and a vector containing the class label for each observation, truth.
+
 rocplot = function(pred, truth, ...){
-    predob  =  prediction(pred, truth)
-    perf  =  performance(predob, "tpr", "fpr")
-    plot(perf,...)}
-svmfit.opt = svm(y~., data = dat[train,], kernel = "radial",gamma = 2, cost = 1,decision.values = T)
-fitted = attributes(predict(svmfit.opt,dat[train,],decision.values = TRUE))$decision.values
-par(mfrow = c(1,2))
-rocplot(fitted,dat[train,"y"],main = "Training Data")
-svmfit.flex = svm(y~., data = dat[train,], kernel = "radial",gamma = 50, cost = 1, decision.values = T)
-fitted = attributes(predict(svmfit.flex,dat[train,],decision.values = T))$decision.values
-rocplot(fitted,dat[train,"y"],add = T,col = "red")
-fitted = attributes(predict(svmfit.opt,dat[-train,],decision.values = T))$decision.values
-rocplot(fitted,dat[-train,"y"],main = "Test Data")
-fitted = attributes(predict(svmfit.flex,dat[-train,],decision.values = T))$decision.values
-rocplot(fitted,dat[-train,"y"],add = T,col = "red")
+    predob  =  prediction(pred, truth) # creates object of class prediction
+    perf  =  performance(predob, "tpr", "fpr") # check performance of true +ve rate & false +ve rate
+    plot(perf, ...)} # plot performance & accept additional arguments
+
+# Note: if the fitted value exceeds zero then the observation is assigned to one class, & 
+# if it is less than zero then it is assigned to the other.
+# Using decision.values = TRUE when fitting svm() to obtain fitted values and so then predict() 
+# function will output the fitted values (not the class) i.e. the distance from boundary
+
+# refit best model now with fitted values
+svmfit.opt = svm(y~., data = dat[train,], kernel = "radial", gamma = 2, cost = 1, decision.values = T)
+fitted = attributes(predict(svmfit.opt,dat[train,], decision.values = TRUE))$decision.values # grab fitted values
+
+# plot data
+par(mfrow = c(1,2)) 
+rocplot(fitted, dat[train,"y"], main = "Training Data") # plots fitted values on training data
+# increase γ to produce a more flexible fit (more local behaviour in radial kernel)
+svmfit.flex = svm(y~., data = dat[train,], kernel = "radial", gamma = 50, cost = 1, decision.values = T)
+# x11(); plot(svmfit.flex, dat[train,]) # quickview more flexible fit
+fitted = attributes(predict(svmfit.flex,dat[train,],decision.values = T))$decision.values # obtain fitted values
+rocplot(fitted,dat[train,"y"], add = T, col = "red") # plots fitted values on training data for more flexible model (too flexible! has fitted training data fully)
+
+# Now plot test data ROCR 
+fitted = attributes(predict(svmfit.opt, dat[-train,], decision.values = T))$decision.values
+rocplot(fitted,dat[-train,"y"], main = "Test Data") # best model on test data
+fitted = attributes(predict(svmfit.flex, dat[-train,], decision.values = T))$decision.values
+rocplot(fitted,dat[-train,"y"], add = T, col = "red") # overfitted model on test data
 
 #####
 # 4. SVM with Multiple Classes
-
+# If response is a factor containing more than two levels, then svm() will perform 
+# multi-class classification using the one-versus-one approach
 set.seed(1)
 x = rbind(x, matrix(rnorm(50*2), ncol = 2))
 y = c(y, rep(0,50))
-x[y == 0,2] = x[y == 0,2]+2
+x[y == 0, 2] = x[y == 0, 2] + 2
 dat = data.frame(x = x, y = as.factor(y))
-par(mfrow = c(1,1))
-plot(x,col = (y+1))
-svmfit = svm(y~., data = dat, kernel = "radial", cost = 10, gamma = 1)
-plot(svmfit, dat)
+par(mfrow = c(1, 1))
+plot(x, col = (y + 1)) # 2 classes
+svmfit = svm(y~., data = dat, kernel = "radial", cost = 10, gamma = 1) # fit SVM
+plot(svmfit, dat) # plot results
+
+# plot using custom function
+xgrid = make.grid(x)
+ygrid = predict(svmfit, xgrid) # predict classifications based on fitted model
+plot(xgrid, col = c('red', 'blue', 'green')[as.numeric(ygrid)], pch = 20, cex = 0.2)
+points(x, col = y + 4, pch = 19) # plot original data
+points(x[svmfit$index,], pch = 5, cex = 2) # plot support vectors
 
 #####
 # 5. Application to Gene Expression Data
 
 library(ISLR)
 names(Khan)
+
+# Data is list containing four components: xtrain, xtest, ytrain, and ytest. 
+# xtrain contains the 2308 gene expression values for 63 subjects & ytrain records the corresponding tumor type. 
+# xtest & ytest contain the corresponding testing sample information for a further 20 subjects.
+# there are 4 tumour types denoted 1-4
+
+# check dimensions
 dim(Khan$xtrain)
 dim(Khan$xtest)
 length(Khan$ytrain)
 length(Khan$ytest)
-table(Khan$ytrain)
-table(Khan$ytest)
-dat = data.frame(x = Khan$xtrain, y = as.factor(Khan$ytrain))
-out = svm(y~., data = dat, kernel = "linear",cost = 10)
+# view data: training and test sets consist of 63 and 20 observations respectively.
+table(Khan$ytrain) # check amount of each tumour in training data
+table(Khan$ytest) # check amount of each tumour in test data
+
+dat = data.frame(x = Khan$xtrain, y = as.factor(Khan$ytrain)) # training df
+
+# there are a very large number of features relative to the number of observations. 
+# This suggests that we should use a linear kernel, because the additional flexibility 
+# that will result from using a polynomial or radial kernel is unnecessary.
+out = svm(y~., data = dat, kernel = "linear", cost = 10) # fit linear SVM
 summary(out)
-table(out$fitted, dat$y)
+table(out$fitted, dat$y) # view results, maybe overfitted as p >> n
+
+# check test data perf (even if good doesn't mean results are stable)
 dat.te = data.frame(x = Khan$xtest, y = as.factor(Khan$ytest))
 pred.te = predict(out, newdata = dat.te)
 table(pred.te, dat.te$y)
-
